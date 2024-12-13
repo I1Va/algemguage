@@ -6,7 +6,6 @@
 #include "string_funcs.h"
 
 const size_t TOKEN_LIST_MAX_SZ = 1028;
-
 union token_value_t {
     int ival;
     long long lval;
@@ -14,37 +13,44 @@ union token_value_t {
     char *sval;
 };
 
-enum lexemtype {
-    LEX_EOF = 0,
-    LEX_NUM = 1,
-    LEX_ADD = 2,
-    LEX_MUL = 3,
-    LEX_SUB = 4,
-    LEX_OBRACE = 5,
-    LEX_CBRACE = 6,
-    LEX_EOL = 7,
-    LEX_SPACE = 9,
-    LEX_STR = 10,
-    LEX_DIV = 11,
-    LEX_POW = 12,
+enum token_t {
+    T_EOF = 0,
+    T_NUM = 1,
+    T_ADD = 2,
+    T_MUL = 3,
+    T_SUB = 4,
+    T_OBRACE = 5,
+    T_CBRACE = 6,
+    T_EOL = 7,
+    T_SPACE = 9,
+    T_STR = 10,
+    T_DIV = 11,
+    T_POW = 12,
 };
 
-struct token_t {
-    enum lexemtype token_type;
+struct lexem_t {
+    enum token_t token_type;
     union token_value_t token_val;
 };
 
+struct key_name_t {
+    char *name;
+    size_t len;
+};
+
 struct parsing_block_t {
-    int sp;
-    char *s;
+    lexem_t *lexem_list;
+    size_t lexem_list_idx;
 
-    int tp;
-    token_t *token_list;
+    char *text;
+    size_t text_idx;
 
+    key_name_t *name_table;
+    size_t name_table_sz;
 
     bin_tree_t *tree;
     dot_code_t *dot_code;
-    str_storage_t ** storage;
+    str_storage_t **storage;
 };
 
 void draw_parsing_text(parsing_block_t *data);
@@ -53,7 +59,7 @@ void SyntaxError();
 
 
 
-token_t next_token(parsing_block_t *data);
+lexem_t next_lexem(parsing_block_t *data);
 
 void token_list_dump(FILE *stream, token_t *token_list, const size_t len);
 
