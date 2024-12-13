@@ -1,0 +1,1 @@
+(value1 * 2) / cos(x * 5) + var51 + x
