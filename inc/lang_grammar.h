@@ -10,22 +10,27 @@ union token_value_t {
     int ival;
     long long lval;
     long double dval;
-    char *sval;
 };
 
 enum token_t {
-    T_EOF = 0,
+    T_EOF = -1,
+    T_EMPTY = 0,
+
     T_NUM = 1,
     T_ADD = 2,
     T_MUL = 3,
-    T_SUB = 4,
     T_OBRACE = 5,
     T_CBRACE = 6,
     T_EOL = 7,
+    T_SUB = 8,
     T_SPACE = 9,
-    T_STR = 10,
     T_DIV = 11,
     T_POW = 12,
+    T_VAR = 13,
+    T_IF = 14,
+    T_WHILE = 15,
+    T_FUNC = 16,
+
 };
 
 struct lexem_t {
@@ -36,11 +41,12 @@ struct lexem_t {
 struct key_name_t {
     char *name;
     size_t len;
+    token_t token_type;
 };
 
 struct parsing_block_t {
     lexem_t *lexem_list;
-    size_t lexem_list_idx;
+    size_t lexem_list_sz;
 
     char *text;
     size_t text_idx;
@@ -61,7 +67,8 @@ void SyntaxError();
 
 lexem_t next_lexem(parsing_block_t *data);
 
-void token_list_dump(FILE *stream, token_t *token_list, const size_t len);
+void token_list_dump(FILE *stream, parsing_block_t *data);
+void name_table_dump(FILE *stream, key_name_t *name_table, const size_t name_table_sz);
 
 void lex_scanner(parsing_block_t *data);
 

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <sys/types.h>
 
 #include "lang_grammar.h"
 #include "diff_funcs.h"
@@ -21,6 +22,21 @@
 
 bool char_in_str_lex(int c) {
     return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || (c == '_');
+}
+
+size_t add_to_name_table(char *new_name, key_name_t *name_table, size_t *name_table_sz) {
+    assert(new_name);
+    assert(name_table);
+    assert(name_table_sz);
+    name_table_dump(stdout, name_table, *name_table_sz);
+    for (size_t name_idx = 0; name_idx < *name_table_sz; name_idx++) {
+        if (strcmp(new_name, name_table[name_idx].name) == 0) {
+            return name_idx;
+        }
+    }
+    name_table[(*name_table_sz)++] = {new_name, T_VAR};
+
+    return (*name_table_sz) - 1;
 }
 
 lexem_t next_lexem(parsing_block_t *data) {
@@ -50,7 +66,6 @@ lexem_t next_lexem(parsing_block_t *data) {
     }
 
     if (char_in_str_lex(c)) {
-        lexem.token_type = T_STR;
         while (char_in_str_lex(c)) {
             bufer[bufer_idx++] = (char) c;
             c = s[(*p)++];
@@ -60,9 +75,11 @@ lexem_t next_lexem(parsing_block_t *data) {
         printf("recognised word: '%s'\n", bufer);
 
         str = get_new_str_ptr(data->storage, bufer_idx);
-        strncpy(str, bufer, bufer_idx);
+        strncpy(str, bufer, bufer_idx); // FIXME: можно ускорить
 
-        lexem.token_val.sval = str;
+        size_t name_idx = add_to_name_table(str, data->name_table, &data->name_table_sz);
+        lexem.token_type = data->name_table[name_idx].token_type;
+        lexem.token_val.ival = (int) name_idx;
         return lexem;
     }
 
@@ -82,14 +99,15 @@ lexem_t next_lexem(parsing_block_t *data) {
     return {T_EOF};
 }
 
-void lexem_list_dump(FILE *stream, lexem_t *lexem_list, const size_t len) {
+void lexem_list_dump(FILE *stream, parsing_block_t *data) {
     #define T_DESCR_(stream, lex, fmt, val) case lex: fprintf(stream, #lex"(" fmt ") ", val); break;
 
-    for (size_t i = 0; i < len; i++) {
-        switch (lexem_list[i].token_type) {
+    for (size_t i = 0; i < data->lexem_list_sz; i++) {
+        lexem_t lexem = data->lexem_list[i];
+        switch (lexem.token_type) {
             T_DESCR_(stream, T_ADD, "%c", '+')
             T_DESCR_(stream, T_EOF, "%s", "")
-            T_DESCR_(stream, T_NUM, "%Ld", lexem_list[i].token_val.lval)
+            T_DESCR_(stream, T_NUM, "%Ld", lexem.token_val.lval)
             T_DESCR_(stream, T_MUL, "%c", '*')
             T_DESCR_(stream, T_SUB, "%c", '-')
             T_DESCR_(stream, T_DIV, "%c", '/')
@@ -97,14 +115,25 @@ void lexem_list_dump(FILE *stream, lexem_t *lexem_list, const size_t len) {
             T_DESCR_(stream, T_CBRACE, "%c", ')')
             T_DESCR_(stream, T_EOL, "%s", "\\n")
             T_DESCR_(stream, T_POW, "%s", "^")
-            T_DESCR_(stream, T_STR, "%s", lexem_list[i].token_val.sval)
+            T_DESCR_(stream, T_VAR, "%s", data->name_table[lexem.token_val.ival].name)
+            T_DESCR_(stream, T_FUNC, "%s", data->name_table[lexem.token_val.ival].name)
             T_DESCR_(stream, T_SPACE, "%c", ' ')
-            default: fprintf(stream, "UNKNOWN_LEX(%d) ", lexem_list[i].token_type); break;
+            default: fprintf(stream, "UNKNOWN_LEX(%d) ", lexem.token_type); break;
         }
     }
     fprintf(stream, "\n");
 
     #undef T_DESCR_
+}
+
+void name_table_dump(FILE *stream, key_name_t *name_table, const size_t name_table_sz) {
+    fprintf(stream, "name_table[%p]\n{\n", name_table);
+
+    for (size_t i = 0; i < name_table_sz; i++) {
+        fprintf(stream, "    [%lu] = '%s'\n", i, name_table[i].name);
+    }
+
+    fprintf(stream, "}\n");
 }
 
 void lex_scanner(parsing_block_t *data) {
@@ -122,7 +151,7 @@ void lex_scanner(parsing_block_t *data) {
         }
     }
 
-    lexem_list_dump(stdout, data->lexem_list, token_idx);
+    lexem_list_dump(stdout, data);
 }
 
 
@@ -148,7 +177,7 @@ bin_tree_elem_t *get_G(parsing_block_t *data) {
     assert(data != NULL);
 
     lexem_t *tl = data->lexem_list;
-    size_t *tp = &(data->lexem_list_idx);
+    size_t *tp = &(data->lexem_list_sz);
     bin_tree_elem_t *val = get_E(data);
 
     if (tl[*tp].token_type != T_EOF) {
@@ -162,7 +191,7 @@ bin_tree_elem_t *get_E(parsing_block_t *data) {
     assert(data != NULL);
 
     lexem_t *tl = data->lexem_list;
-    size_t *tp = &(data->lexem_list_idx);
+    size_t *tp = &(data->lexem_list_sz);
 
     bin_tree_elem_t *val = get_T(data);
     while (tl[*tp].token_type == T_ADD || tl[*tp].token_type == T_SUB) {
@@ -184,7 +213,7 @@ bin_tree_elem_t *get_T(parsing_block_t *data) {
     assert(data != NULL);
 
     lexem_t *tl = data->lexem_list;
-    size_t *tp = &(data->lexem_list_idx);
+    size_t *tp = &(data->lexem_list_sz);
     bin_tree_elem_t *val = get_P(data);
 
     while (tl[*tp].token_type == T_MUL || tl[*tp].token_type == T_DIV) {
@@ -209,7 +238,7 @@ bin_tree_elem_t *get_P(parsing_block_t *data) {
     assert(data != NULL);
 
     lexem_t *tl = data->lexem_list;
-    size_t *tp = &(data->lexem_list_idx);
+    size_t *tp = &(data->lexem_list_sz);
 
     if (tl[*tp].token_type == T_OBRACE) {
         (*tp)++;
@@ -219,9 +248,9 @@ bin_tree_elem_t *get_P(parsing_block_t *data) {
         }
         (*tp)++;
         return val;
-    } else if (tl[*tp].token_type == T_STR && tl[(*tp) + 1].token_type == T_OBRACE) {
+    } else if (tl[*tp].token_type == T_FUNC && tl[(*tp) + 1].token_type == T_OBRACE) {
         return get_F(data);
-    } else if (tl[*tp].token_type == T_STR && strcmp(tl[*tp].token_val.sval, "x") == 0) {
+    } else if (tl[*tp].token_type == T_VAR) {
         return get_V(data);
     } else if (tl[*tp].token_type == T_NUM) {
         return get_N(data);
@@ -235,7 +264,7 @@ bin_tree_elem_t *get_N(parsing_block_t *data) {
     assert(data != NULL);
 
     lexem_t *tl = data->lexem_list;
-    size_t *tp = &(data->lexem_list_idx);
+    size_t *tp = &(data->lexem_list_sz);
 
     long long val = 0;
     if (tl[*tp].token_type != T_NUM) {
@@ -252,10 +281,10 @@ bin_tree_elem_t *get_F(parsing_block_t *data) {
     assert(data != NULL);
 
     lexem_t *tl = data->lexem_list;
-    size_t *tp = &(data->lexem_list_idx);
+    size_t *tp = &(data->lexem_list_sz);
 
-    if (tl[*tp].token_type == T_STR && tl[(*tp) + 1].token_type == T_OBRACE) {
-        char *func_name = tl[*tp].token_val.sval;
+    if (tl[*tp].token_type == T_FUNC && tl[(*tp) + 1].token_type == T_OBRACE) {
+        char *func_name = data->name_table[tl[*tp].token_val.ival].name;
 
         (*tp) += 2;
         bin_tree_elem_t *val = get_E(data);
@@ -276,12 +305,13 @@ bin_tree_elem_t *get_V(parsing_block_t *data) {
     assert(data != NULL);
 
     lexem_t *tl = data->lexem_list;
-    size_t *tp = &(data->lexem_list_idx);
+    size_t *tp = &(data->lexem_list_sz);
 
-    if (tl[*tp].token_type != T_STR && strcmp(tl[*tp].token_val.sval, "x") != 0) {
+    if (tl[*tp].token_type != T_VAR) {
         SyntaxError(*tp);
     }
+    char *var_name = data->name_table[tl[*tp].token_val.ival].name;
     (*tp)++;
 
-    return _VAR();
+    return _VAR(var_name);
 }
