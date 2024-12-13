@@ -1,1 +1,1 @@
-(value1 * 2) / cos(x * 5) + var51 + x
+(_value * 2) / cos(x * 5) + var_ + x

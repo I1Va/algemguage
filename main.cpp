@@ -69,7 +69,8 @@ int main() {
     data.text_idx = 0;
     data.text = text.str_ptr;
     data.lexem_list = lexem_list;
-    data.lexem_list_sz = 0;
+    data.lexem_list_idx = 0;
+    data.lexem_list_size = 0;
     data.tree = &tree;
     data.dot_code = &dot_code;
     data.storage = &storage;

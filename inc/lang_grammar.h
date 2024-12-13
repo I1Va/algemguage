@@ -19,10 +19,11 @@ enum token_t {
     T_NUM = 1,
     T_ADD = 2,
     T_MUL = 3,
+    T_SUB = 4,
     T_OBRACE = 5,
     T_CBRACE = 6,
     T_EOL = 7,
-    T_SUB = 8,
+
     T_SPACE = 9,
     T_DIV = 11,
     T_POW = 12,
@@ -46,7 +47,8 @@ struct key_name_t {
 
 struct parsing_block_t {
     lexem_t *lexem_list;
-    size_t lexem_list_sz;
+    size_t lexem_list_idx;
+    size_t lexem_list_size;
 
     char *text;
     size_t text_idx;
