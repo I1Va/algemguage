@@ -21,32 +21,6 @@ const char DOT_FILE_NAME[] = "graph.dot";
 const char DOT_IMG_NAME[] = "gr_img.png";
 const char CODE_FILE_PATH[] = "./code.txt";
 
-// struct parsing_block_t {
-//     token_t *token_list;
-//     size_t token_list_idx;
-
-//     char *text;
-//     size_t text_idx;
-
-//     key_name_t *name_table;
-//     size_t name_table_sz;
-
-//     bin_tree_t *tree;
-//     dot_code_t *dot_code;
-//     str_storage_t **storage;
-// };
-
-size_t get_constantame_table_sz(key_name_t *name_table) {
-    size_t sz = 0;
-
-    while (name_table && name_table->name) {
-        sz++;
-        name_table++;
-    }
-
-    return sz;
-}
-
 int main() {
     str_storage_t *storage = str_storage_t_ctor(CHUNK_SIZE);
     str_t text = read_text_from_file(CODE_FILE_PATH);
@@ -85,8 +59,13 @@ int main() {
 
 
     tree.root = get_code_block(&data);
+    if (check_parser_err(stdout, &data)) {
+        CLEAR_MEMORY(exit_mark);
+    }
+
     convert_subtree_to_dot(tree.root, &dot_code, &storage);
     dot_code_render(&dot_dir, &dot_code);
+
 
     FREE(text.str_ptr);
     sub_tree_dtor(tree.root);
@@ -94,4 +73,16 @@ int main() {
     dot_code_t_dtor(&dot_code);
 
     return EXIT_SUCCESS;
+
+
+    exit_mark:
+    FREE(text.str_ptr);
+    str_storage_t_dtor(storage);
+    dot_code_t_dtor(&dot_code);
+
+    sub_tree_dtor(tree.root);
+    // bin_tree_dtor(&tree);
+
+
+    return EXIT_FAILURE;
 }
