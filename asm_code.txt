@@ -1,11 +1,7 @@
-push 5;
-push 5;
-push 5;
-mult;
+push 3;
 push 5;
 div;
-push 3;
-mult;
-add;
-push 1;
-add;
+
+out;
+
+hlt;
