@@ -20,17 +20,20 @@ enum token_t {
     T_ADD = 2,
     T_MUL = 3,
     T_SUB = 4,
-    T_OBRACE = 5,
-    T_CBRACE = 6,
-    T_EOL = 7,
+    T_O_BRACE = 5,
+    T_C_BRACE = 6,
+    T_O_FIG_BRACE = 7,
+    T_C_FIG_BRACE = 8,
 
-    T_SPACE = 9,
+    T_EOL = 9,
+
+    T_SPACE = 10,
     T_DIV = 11,
     T_POW = 12,
-    T_VAR = 13,
+    T_ID = 13,
     T_IF = 14,
     T_WHILE = 15,
-    T_FUNC = 16,
+
 
 };
 
@@ -75,12 +78,13 @@ void name_table_dump(FILE *stream, key_name_t *name_table, const size_t name_tab
 void lex_scanner(parsing_block_t *data);
 
 
-bin_tree_elem_t *get_G(parsing_block_t *data);
-bin_tree_elem_t *get_E(parsing_block_t *data);
-bin_tree_elem_t *get_T(parsing_block_t *data);
-bin_tree_elem_t *get_P(parsing_block_t *data);
-bin_tree_elem_t *get_N(parsing_block_t *data);
-bin_tree_elem_t *get_V(parsing_block_t *data);
-bin_tree_elem_t *get_F(parsing_block_t *data);
+bin_tree_elem_t *get_code_block(parsing_block_t *data);
+bin_tree_elem_t *get_additive_expression(parsing_block_t *data);
+bin_tree_elem_t *get_multiplicative_expression(parsing_block_t *data);
+bin_tree_elem_t *get_direct_declarator(parsing_block_t *data);
 
+bin_tree_elem_t *get_function(parsing_block_t *data);
+bin_tree_elem_t *get_primary_expression(parsing_block_t *data);
+bin_tree_elem_t *get_constant(parsing_block_t *data);
+bin_tree_elem_t *get_identificator(parsing_block_t *data);
 #endif // LANG_GRAMMAR_H

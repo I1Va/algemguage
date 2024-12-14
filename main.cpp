@@ -36,7 +36,7 @@ const char CODE_FILE_PATH[] = "./code.txt";
 //     str_storage_t **storage;
 // };
 
-size_t get_name_table_sz(key_name_t *name_table) {
+size_t get_constantame_table_sz(key_name_t *name_table) {
     size_t sz = 0;
 
     while (name_table && name_table->name) {
@@ -75,35 +75,15 @@ int main() {
     data.dot_code = &dot_code;
     data.storage = &storage;
     data.name_table = name_table;
-    data.name_table_sz = get_name_table_sz(name_table);
+    data.name_table_sz = get_constantame_table_sz(name_table);
 
     lex_scanner(&data);
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // tree.root = get_G(&data);
-    // convert_subtree_to_dot(tree.root, &dot_code, &storage);
-    // dot_code_render(&dot_dir, &dot_code);
+    tree.root = get_code_block(&data);
+    convert_subtree_to_dot(tree.root, &dot_code, &storage);
+    dot_code_render(&dot_dir, &dot_code);
 
     FREE(text.str_ptr);
     sub_tree_dtor(tree.root);

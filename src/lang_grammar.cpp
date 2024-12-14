@@ -34,8 +34,7 @@ size_t add_to_name_table(char *new_name, key_name_t *name_table, size_t *name_ta
             return name_idx;
         }
     }
-    name_table_dump(stdout, name_table, *name_table_sz);
-    name_table[(*name_table_sz)++] = {new_name, strlen(new_name), T_VAR};
+    name_table[(*name_table_sz)++] = {new_name, strlen(new_name), T_ID};
 
     return (*name_table_sz) - 1;
 }
@@ -85,7 +84,8 @@ lexem_t next_lexem(parsing_block_t *data) {
     switch (c) {
         case '+': return {T_ADD}; case '-': return {T_SUB};
         case '*': return {T_MUL};
-        case '(': return {T_OBRACE}; case ')': return {T_CBRACE};
+        case '(': return {T_O_BRACE}; case ')': return {T_C_BRACE};
+        case '{': return {T_O_FIG_BRACE}; case '}': return {T_C_FIG_BRACE};
         case '\n': return {T_EOL};
         case ' ': return {T_SPACE};
         case '/': return {T_DIV};
@@ -113,15 +113,16 @@ void lexem_list_dump(FILE *stream, parsing_block_t *data) {
             T_DESCR_(stream, T_MUL, "%c", '*')
             T_DESCR_(stream, T_SUB, "%c", '-')
             T_DESCR_(stream, T_DIV, "%c", '/')
-            T_DESCR_(stream, T_OBRACE, "%c", '(')
-            T_DESCR_(stream, T_CBRACE, "%c", ')')
+            T_DESCR_(stream, T_O_BRACE, "%c", '(')
+            T_DESCR_(stream, T_C_BRACE, "%c", ')')
+            T_DESCR_(stream, T_O_FIG_BRACE, "%c", '{')
+            T_DESCR_(stream, T_C_FIG_BRACE, "%c", '}')
             T_DESCR_(stream, T_EOL, "%s", "\\n")
             T_DESCR_(stream, T_SPACE, "%c", ' ')
             T_DESCR_(stream, T_POW, "%s", "^")
-            T_DESCR_(stream, T_VAR, "%s", data->name_table[lexem.token_val.ival].name)
+            T_DESCR_(stream, T_ID, "%s", data->name_table[lexem.token_val.ival].name)
             T_DESCR_(stream, T_IF, "%s", data->name_table[lexem.token_val.ival].name)
             T_DESCR_(stream, T_WHILE, "%s", data->name_table[lexem.token_val.ival].name)
-            T_DESCR_(stream, T_FUNC, "%s", data->name_table[lexem.token_val.ival].name)
 
 
             default: fprintf(stream, "UNKNOWN_LEX(%d) ", lexem.token_type); break;
@@ -182,12 +183,13 @@ void lex_scanner(parsing_block_t *data) {
 
 
 
-bin_tree_elem_t *get_G(parsing_block_t *data) {
+bin_tree_elem_t *get_code_block(parsing_block_t *data) {
     assert(data != NULL);
 
     lexem_t *tl = data->lexem_list;
     size_t *tp = &(data->lexem_list_idx);
-    bin_tree_elem_t *val = get_E(data);
+
+    bin_tree_elem_t *val = get_additive_expression(data);
 
     if (tl[*tp].token_type != T_EOF) {
         SyntaxError(*tp);
@@ -196,17 +198,17 @@ bin_tree_elem_t *get_G(parsing_block_t *data) {
     return val;
 }
 
-bin_tree_elem_t *get_E(parsing_block_t *data) {
+bin_tree_elem_t *get_additive_expression(parsing_block_t *data) {
     assert(data != NULL);
 
     lexem_t *tl = data->lexem_list;
     size_t *tp = &(data->lexem_list_idx);
 
-    bin_tree_elem_t *val = get_T(data);
+    bin_tree_elem_t *val = get_multiplicative_expression(data);
     while (tl[*tp].token_type == T_ADD || tl[*tp].token_type == T_SUB) {
         token_t op = tl[*tp].token_type;
         (*tp)++;
-        bin_tree_elem_t * val2 = get_T(data);
+        bin_tree_elem_t * val2 = get_multiplicative_expression(data);
 
         if (op == T_ADD) {
             val = _ADD(val, val2);
@@ -218,17 +220,17 @@ bin_tree_elem_t *get_E(parsing_block_t *data) {
     return val;
 }
 
-bin_tree_elem_t *get_T(parsing_block_t *data) {
+bin_tree_elem_t *get_multiplicative_expression(parsing_block_t *data) {
     assert(data != NULL);
 
     lexem_t *tl = data->lexem_list;
     size_t *tp = &(data->lexem_list_idx);
-    bin_tree_elem_t *val = get_P(data);
+    bin_tree_elem_t *val = get_direct_declarator(data);
 
     while (tl[*tp].token_type == T_MUL || tl[*tp].token_type == T_DIV) {
         token_t op = tl[*tp].token_type;
         (*tp)++;
-        bin_tree_elem_t *val2 = get_P(data);
+        bin_tree_elem_t *val2 = get_direct_declarator(data);
         if (op == T_MUL) {
             val = _MUL(val, val2);
         } else {
@@ -242,34 +244,71 @@ bin_tree_elem_t *get_T(parsing_block_t *data) {
 
 // there is should be pow grammar rule
 
+bin_tree_elem_t *get_direct_declarator(parsing_block_t *data) {
+    assert(data != NULL);
 
-bin_tree_elem_t *get_P(parsing_block_t *data) {
+    lexem_t *tl = data->lexem_list;
+    size_t *tp = &(data->lexem_list_idx);
+    if (tl[*tp].token_type == T_O_BRACE) {
+        (*tp)++;
+        bin_tree_elem_t *val = get_additive_expression(data);
+        if (tl[*tp].token_type != T_C_BRACE) {
+            SyntaxError(*tp);
+            return NULL;
+        }
+        (*tp)++;
+        return val;
+    } else if (tl[*tp].token_type == T_ID && tl[(*tp) + 1].token_type == T_O_BRACE) {
+        return get_function(data);
+    } else if (tl[*tp].token_type == T_ID || tl[*tp].token_type == T_NUM) {
+        return get_primary_expression(data);
+    } else {
+        SyntaxError(*tp);
+        return NULL;
+    }
+}
+
+bin_tree_elem_t *get_function(parsing_block_t *data) {
     assert(data != NULL);
 
     lexem_t *tl = data->lexem_list;
     size_t *tp = &(data->lexem_list_idx);
 
-    if (tl[*tp].token_type == T_OBRACE) {
-        (*tp)++;
-        bin_tree_elem_t *val = get_E(data);
-        if (tl[*tp].token_type != T_CBRACE) {
+    if (tl[*tp].token_type == T_ID && tl[(*tp) + 1].token_type == T_O_BRACE) {
+        lexem_t func_lexem = tl[*tp];
+        (*tp) += 2;
+        bin_tree_elem_t *val = get_additive_expression(data);
+        if (tl[*tp].token_type != T_C_BRACE) {
             SyntaxError(*tp);
+            return NULL;
         }
         (*tp)++;
-        return val;
-    } else if (tl[*tp].token_type == T_FUNC && tl[(*tp) + 1].token_type == T_OBRACE) {
-        return get_F(data);
-    } else if (tl[*tp].token_type == T_VAR) {
-        return get_V(data);
-    } else if (tl[*tp].token_type == T_NUM) {
-        return get_N(data);
+        return _FUNC(val, data->name_table[func_lexem.token_val.ival].name);
     } else {
-        SyntaxError(*tp)
+        SyntaxError(*tp);
         return NULL;
     }
 }
 
-bin_tree_elem_t *get_N(parsing_block_t *data) {
+bin_tree_elem_t *get_primary_expression(parsing_block_t *data) {
+    assert(data != NULL);
+
+    lexem_t *tl = data->lexem_list;
+    size_t *tp = &(data->lexem_list_idx);
+
+    if (tl[*tp].token_type == T_ID) {
+        return get_identificator(data);
+    } else if (tl[*tp].token_type == T_NUM) {
+        return get_constant(data);
+    } else {
+        SyntaxError(*tp);
+        return NULL;
+    }
+
+    // FIXME: добавить возможность поддержки выражений вида ((((1007))))
+}
+
+bin_tree_elem_t *get_constant(parsing_block_t *data) {
     assert(data != NULL);
 
     lexem_t *tl = data->lexem_list;
@@ -278,6 +317,7 @@ bin_tree_elem_t *get_N(parsing_block_t *data) {
     long long val = 0;
     if (tl[*tp].token_type != T_NUM) {
         SyntaxError(*tp);
+        return NULL;
     }
 
     val = tl[*tp].token_val.lval;
@@ -286,38 +326,15 @@ bin_tree_elem_t *get_N(parsing_block_t *data) {
     return _NUM(val);
 }
 
-bin_tree_elem_t *get_F(parsing_block_t *data) {
+bin_tree_elem_t *get_identificator(parsing_block_t *data) {
     assert(data != NULL);
 
     lexem_t *tl = data->lexem_list;
     size_t *tp = &(data->lexem_list_idx);
 
-    if (tl[*tp].token_type == T_FUNC && tl[(*tp) + 1].token_type == T_OBRACE) {
-        char *func_name = data->name_table[tl[*tp].token_val.ival].name;
-
-        (*tp) += 2;
-        bin_tree_elem_t *val = get_E(data);
-        printf("E : '%d'\n", val->data.type);
-        if (tl[*tp].token_type != T_CBRACE) {
-            SyntaxError(*tp);
-        }
-        (*tp)++;
-
-        return _FUNC(val, func_name);
-    } else {
+    if (tl[*tp].token_type != T_ID) {
         SyntaxError(*tp);
         return NULL;
-    }
-}
-
-bin_tree_elem_t *get_V(parsing_block_t *data) {
-    assert(data != NULL);
-
-    lexem_t *tl = data->lexem_list;
-    size_t *tp = &(data->lexem_list_idx);
-
-    if (tl[*tp].token_type != T_VAR) {
-        SyntaxError(*tp);
     }
     char *var_name = data->name_table[tl[*tp].token_val.ival].name;
     (*tp)++;

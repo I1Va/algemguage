@@ -1,1 +1,1 @@
-(_value * 2) / cos(x * 5) + var_ + x
+val * bad_cos(x)

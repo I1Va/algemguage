@@ -15,7 +15,7 @@ const char NUM_COLOR[] = "#ddd660";
 const char FUNC_COLOR[] = "#883060";
 const char OP_COLOR[] = "#04859D";
 
-void get_node_type(enum node_types *type, long double *value, char *name) {
+void get_constantode_type(enum node_types *type, long double *value, char *name) {
     if (sscanf(name, "%Lf", value)) {
         *type = NODE_NUM;
         return;
@@ -36,7 +36,7 @@ void get_node_type(enum node_types *type, long double *value, char *name) {
     *value = 0;
 }
 
-void get_node_string(char *bufer, bin_tree_elem_t *node) {
+void get_constantode_string(char *bufer, bin_tree_elem_t *node) {
     if (node == NULL) {
         snprintf(bufer, BUFSIZ, "NULL");
         return;
@@ -56,7 +56,7 @@ void get_node_string(char *bufer, bin_tree_elem_t *node) {
     } else if (node->data.type == NODE_NUM) {
         snprintf(bufer, BUFSIZ, "%Ld", node->data.value.lval);
     } else if (node->data.type == NODE_VAR) {
-        snprintf(bufer, BUFSIZ, "x");
+        snprintf(bufer, BUFSIZ, "%s", node->data.value.sval);
     } else if (node->data.type == NODE_FUNC) {
         snprintf(bufer, BUFSIZ, "%s", node->data.value.sval);
     }
@@ -86,7 +86,7 @@ void diff_infix_print(FILE *stream, bin_tree_elem_t *node) {
     }
 
     char bufer[MINI_BUFER_SZ] = {};
-    get_node_string(bufer, node);
+    get_constantode_string(bufer, node);
     fprintf(stream, "%s", bufer);
 
     if (node->right) {
@@ -102,7 +102,7 @@ void fprintf_seg(FILE *stream, char *left, char *right) {
     }
 }
 
-char *get_end_bracket_ptr(char *start, char *end) {
+char *get_additive_expressionnd_bracket_ptr(char *start, char *end) {
     assert(start != NULL);
     assert(end != NULL);
 
@@ -145,7 +145,7 @@ bin_tree_elem_t *diff_load_infix_expr(bin_tree_t *tree, bin_tree_elem_t *prev, b
     if (seg_char_cnt(left, right, '(') == 1 && seg_char_cnt(left, right, ')') == 1) { // leaf
         get_string_untill_bracket(left + 1, right, bufer);
 
-        get_node_type(&node_type, &node_val, bufer);
+        get_constantode_type(&node_type, &node_val, bufer);
         node = bin_tree_create_node(NULL, NULL, {node_type});
         node->data.value.fval = node_val;
 
@@ -157,15 +157,15 @@ bin_tree_elem_t *diff_load_infix_expr(bin_tree_t *tree, bin_tree_elem_t *prev, b
     // if (*left_son_start == )
     printf("left_son_start : '%c'", *left_son_start);
 
-    char *left_son_end = get_end_bracket_ptr(left_son_start, right);
+    char *left_son_end = get_additive_expressionnd_bracket_ptr(left_son_start, right);
     char *node_end_ptr = get_string_untill_bracket(left_son_end + 1, right, bufer);
 
     char *right_son_start = node_end_ptr;
-    char *right_son_end = get_end_bracket_ptr(right_son_start, right);
+    char *right_son_end = get_additive_expressionnd_bracket_ptr(right_son_start, right);
 
 
 
-    get_node_type(&node_type, &node_val, bufer);
+    get_constantode_type(&node_type, &node_val, bufer);
     node = bin_tree_create_node(NULL, NULL, {node_type});
     node->data.value.fval = node_val;
 
@@ -197,7 +197,7 @@ int put_node_in_dotcode(bin_tree_elem_t *node, dot_code_t *dot_code, str_storage
     assert(node != NULL);
 
     char bufer[MEDIUM_BUFER_SZ] = {};
-    get_node_string(bufer, node);
+    get_constantode_string(bufer, node);
 
     size_t label_sz = MAX_NODE_WRAP_SZ + strlen(bufer);
     char *label = get_new_str_ptr(storage, label_sz);
@@ -326,22 +326,22 @@ void node_dump(FILE *log_file, bin_tree_elem_t *node) {
     );
 
     fprintf_str_block(log_file, indent_sz, dot_code_pars_block_sz, "left_");
-    get_node_string(bufer, node->left);
+    get_constantode_string(bufer, node->left);
     fprintf(log_file, " = ([%p]; '%s')\n", node->left, bufer);
 
     fprintf_str_block(log_file, indent_sz, dot_code_pars_block_sz, "right_");
-    get_node_string(bufer, node->right);
+    get_constantode_string(bufer, node->right);
     fprintf(log_file, " = ([%p]; '%s')\n", node->right, bufer);
 
     fprintf_str_block(log_file, indent_sz, dot_code_pars_block_sz, "prev_");
-    get_node_string(bufer, node->prev);
+    get_constantode_string(bufer, node->prev);
     fprintf(log_file, " = ([%p]; '%s')\n", node->prev, bufer);
 
     fprintf_str_block(log_file, indent_sz, dot_code_pars_block_sz, "is_left_son_");
     fprintf(log_file, " = (%d)\n", node->is_node_left_son);
 
     fprintf_str_block(log_file, indent_sz, dot_code_pars_block_sz, "data_");
-    get_node_string(bufer, node);
+    get_constantode_string(bufer, node);
     fprintf(log_file, " = ('%s')\n", bufer);
 
     fprintf(log_file, "}\n");
@@ -351,7 +351,7 @@ void write_infix(bin_tree_elem_t *node) {
     assert(node != NULL);
 
     char bufer[MEDIUM_BUFER_SZ] = {};
-    get_node_string(bufer, node);
+    get_constantode_string(bufer, node);
 
     if (node->data.type == NODE_VAR) {
         printf("%s", bufer);
@@ -639,7 +639,7 @@ bool defer_check(bin_tree_elem_t *node, defer_info_t *defer_info) {
     return (proportion > DEFER_LOW_DELTA && proportion < DEFER_HIGH_DELTA);
 }
 
-subtree_info_t get_node_info(bin_tree_elem_t *root) {
+subtree_info_t get_constantode_info(bin_tree_elem_t *root) {
     subtree_info_t info = {};
 
     info.sz = 1;
@@ -674,7 +674,7 @@ void merge_subtrees_info(subtree_info_t *dest, subtree_info_t src) {
 void collect_tree_info(bin_tree_elem_t *root) {
     assert(root);
 
-    root->subtree_info = get_node_info(root);
+    root->subtree_info = get_constantode_info(root);
 
     if (root->left) {
         collect_tree_info(root->left);
