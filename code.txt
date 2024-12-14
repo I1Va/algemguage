@@ -1,1 +1,6 @@
-val * bad_cos(x)
+val
+*
+bad_cos(x)
++
+732484273*a
+    

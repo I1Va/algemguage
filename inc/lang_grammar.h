@@ -17,29 +17,41 @@ enum token_t {
     T_EMPTY = 0,
 
     T_NUM = 1,
+
     T_ADD = 2,
     T_MUL = 3,
     T_SUB = 4,
-    T_O_BRACE = 5,
-    T_C_BRACE = 6,
-    T_O_FIG_BRACE = 7,
-    T_C_FIG_BRACE = 8,
+    T_DIV = 5,
+    T_POW = 6,
 
-    T_EOL = 9,
+    T_O_BRACE = 7,
+    T_C_BRACE = 8,
+    T_O_FIG_BRACE = 9,
+    T_C_FIG_BRACE = 10,
 
-    T_SPACE = 10,
-    T_DIV = 11,
-    T_POW = 12,
+    T_EOL = 11, // '\n'
+
+    T_SPACE = 12,
+
+
     T_ID = 13,
-    T_IF = 14,
+    T_IF = 14, // key_words
     T_WHILE = 15,
 
 
 };
 
+struct text_pos_t {
+    size_t lines;
+    size_t syms;
+};
+
 struct lexem_t {
     enum token_t token_type;
     union token_value_t token_val;
+
+    text_pos_t text_pos;
+    size_t len;
 };
 
 struct key_name_t {
@@ -48,16 +60,24 @@ struct key_name_t {
     token_t token_type;
 };
 
-struct parsing_block_t {
-    lexem_t *lexem_list;
-    size_t lexem_list_idx;
-    size_t lexem_list_size;
 
+struct parser_err_t {
+    text_pos_t err_lex_pos;
+    lexem_t lex;
+};
+
+struct parsing_block_t {
     char *text;
     size_t text_idx;
 
     key_name_t *name_table;
     size_t name_table_sz;
+
+    lexem_t *lexem_list;
+    size_t lexem_list_idx;
+    size_t lexem_list_size;
+
+    parser_err_t parser_err;
 
     bin_tree_t *tree;
     dot_code_t *dot_code;
@@ -74,6 +94,7 @@ lexem_t next_lexem(parsing_block_t *data);
 
 void token_list_dump(FILE *stream, parsing_block_t *data);
 void name_table_dump(FILE *stream, key_name_t *name_table, const size_t name_table_sz);
+void lexem_dump(FILE *stream, key_name_t *name_table, lexem_t lexem);
 
 void lex_scanner(parsing_block_t *data);
 

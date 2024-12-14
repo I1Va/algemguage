@@ -54,6 +54,7 @@ lexem_t next_lexem(parsing_block_t *data) {
 
     if (isdigit(c)) {
         lexem.token_type = T_NUM;
+        size_t start_p = *p;
 
         while (isdigit(c)) {
             lval = 10 * lval + c - '0';
@@ -62,6 +63,8 @@ lexem_t next_lexem(parsing_block_t *data) {
         (*p)--;
 
         lexem.token_val.lval = lval;
+        lexem.len = (*p) + 1 - start_p;
+
         return lexem;
     }
 
@@ -76,61 +79,66 @@ lexem_t next_lexem(parsing_block_t *data) {
         strncpy(str, bufer, bufer_idx); // FIXME: можно ускорить
 
         size_t name_idx = add_to_name_table(str, data->name_table, &data->name_table_sz);
+
         lexem.token_type = data->name_table[name_idx].token_type;
         lexem.token_val.ival = (int) name_idx;
+        lexem.len = data->name_table[name_idx].len;
+
         return lexem;
     }
 
     switch (c) {
-        case '+': return {T_ADD}; case '-': return {T_SUB};
-        case '*': return {T_MUL};
-        case '(': return {T_O_BRACE}; case ')': return {T_C_BRACE};
-        case '{': return {T_O_FIG_BRACE}; case '}': return {T_C_FIG_BRACE};
-        case '\n': return {T_EOL};
-        case ' ': return {T_SPACE};
-        case '/': return {T_DIV};
-        case '\t': return {T_SPACE};
-        case '^': return {T_POW};
-        case EOF: return {T_EOF};
-        case '\0': return {T_EOF};
+        case '+': return {T_ADD, {}, {}, 1}; case '-': return {T_SUB, {}, {}, 1};
+        case '*': return {T_MUL, {}, {}, 1};
+        case '(': return {T_O_BRACE, {}, {}, 1}; case ')': return {T_C_BRACE, {}, {}, 1};
+        case '{': return {T_O_FIG_BRACE, {}, {}, 1}; case '}': return {T_C_FIG_BRACE, {}, {}, 1};
+        case '\n': return {T_EOL, {}, {}, 1};
+        case ' ': return {T_SPACE, {}, {}, 1};
+        case '/': return {T_DIV, {}, {}, 1};
+        case '\t': return {T_SPACE, {}, {}, 4};
+        case '^': return {T_POW, {}, {}, 1};
+        case EOF: return {T_EOF, {}, {}, 1};
+        case '\0': return {T_EOF, {}, {}, 1};
         default: ScannerError(*p, s[*p])
     }
     return {T_EOF};
 }
 
-void lexem_list_dump(FILE *stream, parsing_block_t *data) {
-    #define T_DESCR_(stream, lex, fmt, val) case lex: fprintf(stream, #lex"(" fmt ") ", val); break;
+void lexem_dump(FILE *stream, key_name_t *name_table, lexem_t lexem) {
+    #define T_DESCR_(stream, lex, fmt, val) case lex: fprintf(stream, #lex"(" fmt ")", val); break;
+    fprintf(stream, "[l:%lu, s:%lu]", lexem.text_pos.lines + 1, lexem.text_pos.syms + 1);
+    switch (lexem.token_type) {
+        T_DESCR_(stream, T_EOF, "%s", "")
+        T_DESCR_(stream, T_EMPTY, "%s", "")
 
+        T_DESCR_(stream, T_NUM, "%Ld", lexem.token_val.lval)
+        T_DESCR_(stream, T_ADD, "%c", '+')
+        T_DESCR_(stream, T_MUL, "%c", '*')
+        T_DESCR_(stream, T_SUB, "%c", '-')
+        T_DESCR_(stream, T_DIV, "%c", '/')
+        T_DESCR_(stream, T_O_BRACE, "%c", '(')
+        T_DESCR_(stream, T_C_BRACE, "%c", ')')
+        T_DESCR_(stream, T_O_FIG_BRACE, "%c", '{')
+        T_DESCR_(stream, T_C_FIG_BRACE, "%c", '}')
+        T_DESCR_(stream, T_EOL, "%s", "\\n")
+        T_DESCR_(stream, T_SPACE, "%c", ' ')
+        T_DESCR_(stream, T_POW, "%s", "^")
+        T_DESCR_(stream, T_ID, "%s", name_table[lexem.token_val.ival].name)
+        T_DESCR_(stream, T_IF, "%s", name_table[lexem.token_val.ival].name)
+        T_DESCR_(stream, T_WHILE, "%s", name_table[lexem.token_val.ival].name)
+        default: fprintf(stream, "UNKNOWN_LEX(%d) ", lexem.token_type); break;
+    }
+    #undef T_DESCR_
+}
+
+void lexem_list_dump(FILE *stream, parsing_block_t *data) {
     printf("len: [%lu]\n", data->lexem_list_size);
     for (size_t i = 0; i < data->lexem_list_size; i++) {
         lexem_t lexem = data->lexem_list[i];
-        switch (lexem.token_type) {
-            T_DESCR_(stream, T_EOF, "%s", "")
-            T_DESCR_(stream, T_EMPTY, "%s", "")
-
-            T_DESCR_(stream, T_NUM, "%Ld", lexem.token_val.lval)
-            T_DESCR_(stream, T_ADD, "%c", '+')
-            T_DESCR_(stream, T_MUL, "%c", '*')
-            T_DESCR_(stream, T_SUB, "%c", '-')
-            T_DESCR_(stream, T_DIV, "%c", '/')
-            T_DESCR_(stream, T_O_BRACE, "%c", '(')
-            T_DESCR_(stream, T_C_BRACE, "%c", ')')
-            T_DESCR_(stream, T_O_FIG_BRACE, "%c", '{')
-            T_DESCR_(stream, T_C_FIG_BRACE, "%c", '}')
-            T_DESCR_(stream, T_EOL, "%s", "\\n")
-            T_DESCR_(stream, T_SPACE, "%c", ' ')
-            T_DESCR_(stream, T_POW, "%s", "^")
-            T_DESCR_(stream, T_ID, "%s", data->name_table[lexem.token_val.ival].name)
-            T_DESCR_(stream, T_IF, "%s", data->name_table[lexem.token_val.ival].name)
-            T_DESCR_(stream, T_WHILE, "%s", data->name_table[lexem.token_val.ival].name)
-
-
-            default: fprintf(stream, "UNKNOWN_LEX(%d) ", lexem.token_type); break;
-        }
+        lexem_dump(stream, data->name_table, lexem);
+        fprintf(stream, " ");
     }
     fprintf(stream, "\n");
-
-    #undef T_DESCR_
 }
 
 void name_table_dump(FILE *stream, key_name_t *name_table, const size_t name_table_sz) {
@@ -143,15 +151,30 @@ void name_table_dump(FILE *stream, key_name_t *name_table, const size_t name_tab
     fprintf(stream, "}\n");
 }
 
+void text_pos_update(text_pos_t *text_pos, const lexem_t lexem) {
+    if (lexem.token_type == T_EOL) {
+        text_pos->lines++;
+        text_pos->syms = 0;
+        return;
+    }
+
+    text_pos->syms += lexem.len;
+}
+
 void lex_scanner(parsing_block_t *data) {
     assert(data != NULL);
 
     size_t token_idx = 0;
+    text_pos_t cur_text_pos = {};
 
     printf("text: '%s'\n", data->text);
 
     while (1) {
         lexem_t lexem = next_lexem(data);
+
+        lexem.text_pos = cur_text_pos;
+        text_pos_update(&cur_text_pos, lexem);
+
         if (lexem.token_type != T_SPACE && lexem.token_type != T_EOL) {
             data->lexem_list[token_idx++] = lexem;
         }
