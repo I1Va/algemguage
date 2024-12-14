@@ -97,9 +97,10 @@ struct parsing_block_t {
 
     parser_err_t parser_err;
 
-    bin_tree_t *tree;
     dot_code_t *dot_code;
     str_storage_t **storage;
+
+    FILE *asm_code_file_ptr;
 };
 
 #endif // LANG_GLOBAL_SPACE_H

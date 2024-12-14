@@ -7,3 +7,6 @@
 [submodule "string_funcs"]
 	path = string_funcs
 	url = https://github.com/I1Va/string_funcs.git
+[submodule "assembler"]
+	path = assembler
+	url = https://github.com/I1Va/assembler.git

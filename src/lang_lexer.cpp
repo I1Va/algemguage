@@ -128,7 +128,7 @@ void lex_scanner(parsing_block_t *data) {
     lexem_list_dump(stdout, data);
 }
 
-size_t get_constantame_table_sz(key_name_t *name_table) {
+size_t get_name_table_sz(key_name_t *name_table) {
     size_t sz = 0;
 
     while (name_table && name_table->name) {

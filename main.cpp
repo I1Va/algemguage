@@ -9,6 +9,7 @@
 #include "general.h"
 #include "diff_tree.h"
 #include "graphviz_funcs.h"
+#include "lang_global_space.h"
 #include "stack_funcs.h"
 #include "diff_funcs.h"
 #include "string_funcs.h"
@@ -20,6 +21,39 @@ const char LOG_FILE_PATH[] = "./logs/log.html";
 const char DOT_FILE_NAME[] = "graph.dot";
 const char DOT_IMG_NAME[] = "gr_img.png";
 const char CODE_FILE_PATH[] = "./code.txt";
+const char ASM_CODE_FILE_PATH[] = "./asm_code.txt";
+
+bool parsing_block_t_ctor(parsing_block_t *data, char *text, key_name_t *name_table, lexem_t *lexem_list,
+    dot_code_t *dot_code, str_storage_t **storage, const char asm_code_file_path[])
+{
+    data->text_idx = 0;
+    data->text = text;
+
+    data->lexem_list = lexem_list;
+    data->lexem_list_idx = 0;
+    data->lexem_list_size = 0;
+
+    data->parser_err = {};
+
+    data->dot_code = dot_code;
+    data->storage = storage;
+    data->name_table = name_table;
+    data->name_table_sz = get_name_table_sz(name_table);
+
+    data->asm_code_file_ptr = fopen(asm_code_file_path, "w");
+    if (!data->asm_code_file_ptr) {
+        debug("failed to open '%s'", asm_code_file_path);
+        return false;
+    }
+
+    return true;
+}
+
+void parsing_block_t_dtor(parsing_block_t *data) {
+    if (data && data->asm_code_file_ptr) {
+        fclose(data->asm_code_file_ptr);
+    }
+}
 
 int main() {
     str_storage_t *storage = str_storage_t_ctor(CHUNK_SIZE);
@@ -39,20 +73,8 @@ int main() {
     };
 
     parsing_block_t data = {};
-    data.text_idx = 0;
-    data.text = text.str_ptr;
+    parsing_block_t_ctor(&data, text.str_ptr, name_table, lexem_list, &dot_code, &storage, ASM_CODE_FILE_PATH);
 
-    data.lexem_list = lexem_list;
-    data.lexem_list_idx = 0;
-    data.lexem_list_size = 0;
-
-    data.parser_err = {};
-
-    data.tree = &tree;
-    data.dot_code = &dot_code;
-    data.storage = &storage;
-    data.name_table = name_table;
-    data.name_table_sz = get_constantame_table_sz(name_table);
 
     lex_scanner(&data);
 
@@ -71,6 +93,7 @@ int main() {
     sub_tree_dtor(tree.root);
     str_storage_t_dtor(storage);
     dot_code_t_dtor(&dot_code);
+    parsing_block_t_dtor(&data);
 
     return EXIT_SUCCESS;
 
@@ -79,9 +102,9 @@ int main() {
     FREE(text.str_ptr);
     str_storage_t_dtor(storage);
     dot_code_t_dtor(&dot_code);
-
     sub_tree_dtor(tree.root);
-    // bin_tree_dtor(&tree);
+    parsing_block_t_dtor(&data);
+    bin_tree_dtor(&tree);
 
 
     return EXIT_FAILURE;

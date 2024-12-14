@@ -1,0 +1,11 @@
+push 5;
+push 5;
+push 5;
+mult;
+push 5;
+div;
+push 3;
+mult;
+add;
+push 1;
+add;
